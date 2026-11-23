@@ -5,7 +5,9 @@ A Kubernetes operator that runs a group of durable virtual machines on
 
 > **Status: early development.** The API types (`MachineSet`, `MachineSetMember`) and their
 > validation webhooks are in place. The controllers that create and restore the Machines are
-> not implemented yet.
+> not implemented yet. The design is proposed in the IEP draft
+> [ironcore-dev/enhancements#71](https://github.com/ironcore-dev/enhancements/pull/71); this
+> project and the draft evolve together.
 
 ## Description
 
@@ -14,7 +16,7 @@ IronCore runs virtual machines as `Machine` objects, each with its own `Volume`s
 number of identical Machines, called *members*, from one template.
 
 Each member is recorded in a `MachineSetMember` object, which owns the member's Volumes and
-NetworkInterfaces. When a member's Machine is lost or replaced, these resources and their IP
+NetworkInterfaces. When a member's Machine is deleted or replaced, these resources and their IP
 addresses stay with the member, so the replacement Machine gets the same disks and network
 identity.
 
@@ -30,6 +32,37 @@ Settings that belong to exactly one Machine, such as a hostname or a fixed IP ad
 allowed while `replicas` is at most 1. See
 [`config/samples/compute_v1alpha1_machineset.yaml`](config/samples/compute_v1alpha1_machineset.yaml)
 for an example.
+
+### How it fits into IronCore
+
+The operator is a client of IronCore. It creates, deletes and watches Machines, Volumes and
+NetworkInterfaces through IronCore's public API, like any user. Scheduling, power, attachment
+and host teardown stay with IronCore's existing components, which need no changes.
+
+It is optional: the MachineSet API is served from its own CRDs, and the operator only touches
+objects it created. Externally referenced Volumes and NetworkInterfaces are attached and
+released, never modified or deleted. The API group `compute.odc.telekom.com` is a placeholder
+until the IronCore maintainers decide where MachineSet belongs. The validation rules are plain
+Go functions, so they can move into IronCore's API server unchanged if MachineSet becomes a
+core type.
+
+### Restoring members and host loss
+
+MachineSet creates a successor Machine only after the previous Machine is **fully deleted** and
+its Volume and NetworkInterface claims are released. Deletion is the only signal it acts on;
+why the Machine was deleted, for example by
+[eviction](https://github.com/ironcore-dev/enhancements/blob/main/ieps/21-machine-eviction.md)
+or by a user, does not matter.
+
+This rests on one assumption about IronCore: **a Machine's deletion completes only when its VM
+can no longer use its resources.** On a reachable MachinePool, the pool's poollet completes the
+deletion after the provider has removed the VM. On an unreachable pool, the deletion stays
+blocked and the member waits, because an unreachable host does not mean a stopped VM.
+
+Recovering members after host loss therefore needs host fencing, which IronCore does not have
+yet: a safe way to complete a deletion on an unreachable pool. Until then, removing the
+finalizer of a Machine on an unreachable pool is an operator decision. It is only safe if the
+host is known to be off.
 
 ## Getting Started
 
@@ -187,7 +220,7 @@ shasum -a 256 -c SHA256SUMS
 2. Mirror the image into your registry (e.g. inside the air gap):
 
 ```sh
-REGISTRY=registry.example.internal/odc
+REGISTRY=registry.example.internal/mirror
 
 skopeo copy \
     oci-archive:image-linux-amd64.oci.tar \

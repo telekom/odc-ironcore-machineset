@@ -118,21 +118,6 @@ var _ = Describe("ValidateMachineSetMember", func() {
 				Prefixes:            []string{"10.1.0.0"},
 			}}
 		}, "status.networkInterfaces[0].prefixes[0]"),
-		Entry("accepts a trigger for a Restoring operation", func(s *computev1alpha1.MachineSetMemberStatus) {
-			s.Operation = &computev1alpha1.MemberOperation{
-				Type:    computev1alpha1.OperationRestoring,
-				Trigger: computev1alpha1.RestorationTriggerFenced,
-			}
-		}, ""),
-		Entry("rejects a trigger for another operation", func(s *computev1alpha1.MachineSetMemberStatus) {
-			s.Operation = &computev1alpha1.MemberOperation{
-				Type:    computev1alpha1.OperationProvisioning,
-				Trigger: computev1alpha1.RestorationTriggerFenced,
-			}
-		}, msgTriggerOnlyForRestoring),
-		Entry("rejects an unknown trigger", func(s *computev1alpha1.MachineSetMemberStatus) {
-			s.Operation = &computev1alpha1.MemberOperation{Type: computev1alpha1.OperationRestoring, Trigger: "Timeout"}
-		}, "status.operation.trigger: Unsupported value"),
 		Entry("rejects an operation without a type", func(s *computev1alpha1.MachineSetMemberStatus) {
 			s.Operation = &computev1alpha1.MemberOperation{}
 		}, "status.operation.type: Required value"),

@@ -58,7 +58,8 @@ const (
 	OperationProvisioning OperationType = "Provisioning"
 	// OperationPowerChange changes the power state of the existing Machine.
 	OperationPowerChange OperationType = "PowerChange"
-	// OperationRestoring creates a successor Machine after the previous one was lost.
+	// OperationRestoring creates a successor Machine after the previous one was deleted by someone
+	// else, for example by eviction, and its deletion completed.
 	OperationRestoring OperationType = "Restoring"
 	// OperationReactivating creates a Machine for a retained member that is requested again.
 	OperationReactivating OperationType = "Reactivating"
@@ -66,21 +67,6 @@ const (
 	OperationRetiring OperationType = "Retiring"
 	// OperationReclaiming deletes the member's Machine, owned resources and the member.
 	OperationReclaiming OperationType = "Reclaiming"
-)
-
-// RestorationTrigger is the signal that started a restoration. Only these signals show that the
-// previous Machine has stopped, so nothing else starts a restoration.
-type RestorationTrigger string
-
-const (
-	// RestorationTriggerRelinquished means the Machine's pool gave up the Machine.
-	RestorationTriggerRelinquished RestorationTrigger = "Relinquished"
-	// RestorationTriggerFenced means the Machine's host was fenced (safely stopped).
-	RestorationTriggerFenced RestorationTrigger = "Fenced"
-	// RestorationTriggerExternalDeletion means someone else deleted the Machine.
-	RestorationTriggerExternalDeletion RestorationTrigger = "ExternalDeletion"
-	// RestorationTriggerEviction means the Machine was evicted.
-	RestorationTriggerEviction RestorationTrigger = "Eviction"
 )
 
 // MachineSetMemberSpec defines the desired state of MachineSetMember. It is written by the
@@ -204,10 +190,6 @@ type MemberOperation struct {
 	// phase is the current step of the operation.
 	// +optional
 	Phase string `json:"phase,omitempty"`
-
-	// trigger is the signal that started a restoration.
-	// +optional
-	Trigger RestorationTrigger `json:"trigger,omitempty"`
 
 	// predecessorMachineRef is the Machine being replaced, by name and UID.
 	// +optional

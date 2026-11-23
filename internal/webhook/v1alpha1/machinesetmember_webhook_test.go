@@ -73,13 +73,10 @@ var _ = Describe("MachineSetMember webhook", func() {
 		member := newMember()
 		create(member)
 
-		member.Status.Operation = &computev1alpha1.MemberOperation{
-			Type:    computev1alpha1.OperationRestoring,
-			Trigger: computev1alpha1.RestorationTriggerFenced,
-		}
+		member.Status.Operation = &computev1alpha1.MemberOperation{Type: computev1alpha1.OperationRestoring}
 		Expect(k8sClient.Status().Update(ctx, member)).To(Succeed())
 
-		member.Status.Operation.Type = computev1alpha1.OperationProvisioning
-		expectInvalid(k8sClient.Status().Update(ctx, member), "trigger is only set for a Restoring operation")
+		member.Status.Operation.Type = "Migrating"
+		expectInvalid(k8sClient.Status().Update(ctx, member), "status.operation.type: Unsupported value")
 	})
 })

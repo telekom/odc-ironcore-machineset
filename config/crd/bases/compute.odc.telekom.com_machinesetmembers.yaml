@@ -254,9 +254,6 @@ spec:
                     description: startTime is when the operation started.
                     format: date-time
                     type: string
-                  trigger:
-                    description: trigger is the signal that started a restoration.
-                    type: string
                   type:
                     description: type of the operation.
                     type: string
