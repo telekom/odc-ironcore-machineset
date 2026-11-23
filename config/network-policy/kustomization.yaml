@@ -1,6 +1,7 @@
+# Optional NetworkPolicies for the controller manager. They are not part of config/default:
+# network policy for an IronCore control plane is best set by the platform for all components.
+# Apply them with `make deploy-network-policy`, or with dist/install-network-policy.yaml from
+# a release. Both only restrict ingress; see "Network requirements" in the README.
 resources:
-- default-deny-all.yaml
-- allow-apiserver-egress.yaml
-- allow-dns-egress.yaml
 - allow-metrics-traffic.yaml
-- allow-webhook-ingress.yaml
+- allow-webhook-traffic.yaml

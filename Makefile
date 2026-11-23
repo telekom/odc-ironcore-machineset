@@ -78,7 +78,7 @@ PROMETHEUS_NAMESPACE ?= monitoring
 E2E_KUBECONFIG ?= $(LOCALBIN)/kubeconfig-$(KIND_CLUSTER)
 
 .PHONY: setup-test-e2e
-setup-test-e2e: ## Set up a Kind cluster (Cilium, cert-manager, Prometheus Operator) for e2e tests if it does not exist
+setup-test-e2e: ## Set up a Kind cluster (cert-manager, Prometheus Operator) for e2e tests if it does not exist
 	@command -v $(KIND) >/dev/null 2>&1 || { \
 		echo "Kind is not installed. Please install Kind manually."; \
 		exit 1; \
@@ -94,25 +94,14 @@ setup-test-e2e: ## Set up a Kind cluster (Cilium, cert-manager, Prometheus Opera
 	esac
 	@# Also covers clusters created earlier with the default kubeconfig.
 	$(KIND) get kubeconfig --name $(KIND_CLUSTER) > "$(E2E_KUBECONFIG)"
-	KUBECONFIG="$(E2E_KUBECONFIG)" $(MAKE) install-cilium install-cert-manager install-prometheus
+	KUBECONFIG="$(E2E_KUBECONFIG)" $(MAKE) install-cert-manager install-prometheus
 
-.PHONY: install-cilium
-install-cilium: ## Install Cilium as CNI into the Kind cluster (KUBE_CONTEXT)
+.PHONY: install-cert-manager
+install-cert-manager: ## Install cert-manager into the Kind cluster (KUBE_CONTEXT)
 	@command -v $(HELM) >/dev/null 2>&1 || { \
 		echo "Helm is not installed. Please install Helm manually."; \
 		exit 1; \
 	}
-	$(HELM) upgrade --install cilium cilium \
-		--repo https://helm.cilium.io \
-		--version $(CILIUM_VERSION) \
-		--kube-context $(KUBE_CONTEXT) \
-		--namespace kube-system \
-		--set ipam.mode=kubernetes \
-		--set operator.replicas=1 \
-		--wait --timeout 10m
-
-.PHONY: install-cert-manager
-install-cert-manager: ## Install cert-manager into the Kind cluster (KUBE_CONTEXT)
 	$(HELM) upgrade --install cert-manager cert-manager \
 		--repo https://charts.jetstack.io \
 		--version $(CERT_MANAGER_VERSION) \
@@ -125,7 +114,7 @@ install-cert-manager: ## Install cert-manager into the Kind cluster (KUBE_CONTEX
 install-prometheus: ## Install a minimal Prometheus Operator stack into the Kind cluster (KUBE_CONTEXT)
 	"$(KUBECTL)" --context $(KUBE_CONTEXT) create namespace $(PROMETHEUS_NAMESPACE) \
 		--dry-run=client -o yaml | "$(KUBECTL)" --context $(KUBE_CONTEXT) apply -f -
-	@# The operator's NetworkPolicy only admits scrapers from namespaces with this label.
+	@# The optional metrics NetworkPolicy only admits scrapers from namespaces with this label.
 	"$(KUBECTL)" --context $(KUBE_CONTEXT) label --overwrite namespace $(PROMETHEUS_NAMESPACE) metrics=enabled
 	$(HELM) upgrade --install kube-prometheus-stack kube-prometheus-stack \
 		--repo https://prometheus-community.github.io/helm-charts \
@@ -219,12 +208,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	rm Dockerfile.cross
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate dist/install.yaml and dist/install-monitoring.yaml (apply in that order).
+build-installer: manifests generate kustomize ## Generate dist/install.yaml and dist/install-monitoring.yaml (apply in that order), and the optional dist/install-network-policy.yaml.
 	mkdir -p dist
 	cd config/manager && "$(KUSTOMIZE)" edit set image controller=${IMG}
 	@# Split like `make deploy`, see config/installer/operator/kustomization.yaml.
 	"$(KUSTOMIZE)" build config/installer/operator > dist/install.yaml
 	"$(KUSTOMIZE)" build config/installer/monitoring > dist/install-monitoring.yaml
+	"$(KUSTOMIZE)" build config/installer/network-policy > dist/install-network-policy.yaml
 
 # RELEASE_PLATFORMS lists the platforms for which `make release-artifacts` builds image archives and SBOMs.
 RELEASE_PLATFORMS ?= linux/amd64 linux/arm64
@@ -281,6 +271,10 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 		-l app.kubernetes.io/name=odc-ironcore-machineset --for=condition=Ready --timeout=2m
 	"$(KUSTOMIZE)" build config/installer/monitoring | "$(KUBECTL)" apply -f -
 
+.PHONY: deploy-network-policy
+deploy-network-policy: kustomize ## Apply the optional NetworkPolicies (config/network-policy) to the K8s cluster specified in ~/.kube/config.
+	"$(KUSTOMIZE)" build config/installer/network-policy | "$(KUBECTL)" apply -f -
+
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	"$(KUSTOMIZE)" build config/default | "$(KUBECTL)" delete --ignore-not-found=$(ignore-not-found) -f -
@@ -324,7 +318,6 @@ ADDLICENSE_VERSION ?= v1.2.0
 SYFT_VERSION ?= v1.55.0
 
 ## Helm chart versions for the Kind cluster (setup-test-e2e)
-CILIUM_VERSION ?= 1.20.4
 CERT_MANAGER_VERSION ?= v1.21.3
 KUBE_PROMETHEUS_STACK_VERSION ?= 92.14.1
 
