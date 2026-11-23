@@ -16,8 +16,8 @@ limitations under the License.
 
 package v1alpha1
 
-// Condition types and reasons. The IEP only names Ready and Progressing; the other types and all
-// reasons are a proposal of this project (see issue #11).
+// Condition types and reasons. The IEP draft (ironcore-dev/enhancements#71) only names Ready and
+// Progressing; the other types and all reasons are a proposal of this project.
 
 // MachineSetMember condition types.
 const (

@@ -25,8 +25,6 @@ import (
 	computev1alpha1 "github.com/telekom/odc-ironcore-machineset/api/v1alpha1"
 )
 
-const msgTriggerOnlyForRestoring = "trigger is only set for a Restoring operation"
-
 var (
 	memberLifecycles = []computev1alpha1.MemberLifecycle{
 		computev1alpha1.MemberLifecycleActive,
@@ -51,12 +49,6 @@ var (
 		computev1alpha1.OperationReactivating,
 		computev1alpha1.OperationRetiring,
 		computev1alpha1.OperationReclaiming,
-	}
-	restorationTriggers = []computev1alpha1.RestorationTrigger{
-		computev1alpha1.RestorationTriggerRelinquished,
-		computev1alpha1.RestorationTriggerFenced,
-		computev1alpha1.RestorationTriggerExternalDeletion,
-		computev1alpha1.RestorationTriggerEviction,
 	}
 )
 
@@ -123,11 +115,6 @@ func ValidateMachineSetMemberStatus(member *computev1alpha1.MachineSetMember) fi
 	if operation := status.Operation; operation != nil {
 		operationPath := statusPath.Child("operation")
 		allErrs = append(allErrs, validateEnum(operation.Type, false, operationPath.Child("type"), operationTypes...)...)
-		triggerPath := operationPath.Child("trigger")
-		allErrs = append(allErrs, validateEnum(operation.Trigger, true, triggerPath, restorationTriggers...)...)
-		if operation.Trigger != "" && operation.Type != computev1alpha1.OperationRestoring {
-			allErrs = append(allErrs, field.Forbidden(triggerPath, msgTriggerOnlyForRestoring))
-		}
 		if operation.PredecessorMachineRef != nil {
 			allErrs = append(allErrs, validateUIDRef(*operation.PredecessorMachineRef,
 				operationPath.Child("predecessorMachineRef"))...)

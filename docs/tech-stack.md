@@ -1,24 +1,23 @@
-# Development Tech Stack: ODC Kubernetes Operator
+# Development Tech Stack
 
-**Primary Target:** Open Defence Cloud (ODC) — Sovereign, air-gapped, hardened environments  
-**Secondary / Optional Target:** IronCore (`ironcore-dev`) ecosystem compatibility  
+**Target:** [IronCore](https://github.com/ironcore-dev/ironcore); the operator is a client of IronCore's API  
+**Deployment context:** air-gapped, hardened environments  
 **Design Principle:** Minimal tech debt, minimal runtime dependencies, supply-chain security by default
 
 ---
 
 ## 1. Core Runtime (`go.mod` — Minimal Footprint)
 
-Every runtime dependency in `go.mod` increases supply-chain surface area and CVE maintenance in defence environments. Keep runtime imports restricted to official Kubernetes libraries:
+Every runtime dependency in `go.mod` increases supply-chain surface area and CVE maintenance. Keep runtime imports restricted to the Kubernetes libraries and IronCore:
 
-- **Go (`1.24+`)**: Built with `CGO_ENABLED=0` for static, reproducible binaries.
+- **Go (version in `go.mod`)**: Built with `CGO_ENABLED=0` for static, reproducible binaries.
 - **`sigs.k8s.io/controller-runtime`**: Core reconciliation framework, manager, client, and webhooks.
 - **`k8s.io/apimachinery` & `k8s.io/client-go`**: Standard Kubernetes types, schemes, and utilities.
   - Use upstream `sigs.k8s.io/controller-runtime/pkg/controller/controllerutil` for finalizers and owner references.
   - Use upstream `k8s.io/apimachinery/pkg/api/meta` (`meta.SetStatusCondition`) for status conditions.
   - *Avoid third-party helper wrappers so `go.mod` stays lean.*
-- **`github.com/ironcore-dev/ironcore/api` *(Optional / Decoupled)*:**
-  - Import **only** if the operator directly watches or provisions IronCore resources (`Machine`, `Volume`, `Network`).
-  - Isolate IronCore resource adapters in a dedicated internal package so the core operator logic remains decoupled.
+- **`github.com/ironcore-dev/ironcore` (API types)**: The MachineSet template embeds IronCore's Machine, Volume and networking types, and the controllers will read and write IronCore resources.
+- **`github.com/ironcore-dev/controller-utils`**: Test helpers shared with other IronCore projects.
 
 ---
 
@@ -43,7 +42,7 @@ Aligns with both Kubebuilder defaults and IronCore upstream conventions to preve
 
 ---
 
-## 4. ODC Security & Quality Gate (`Makefile` & CI Tooling)
+## 4. Security & Quality Gate (`Makefile` & CI Tooling)
 
 These run strictly as build/CI tools and add **zero** dependencies to the operator binary:
 
@@ -52,8 +51,8 @@ These run strictly as build/CI tools and add **zero** dependencies to the operat
 | **`gcr.io/distroless/static:nonroot`** | Minimal hardened container base image (`runAsNonRoot: true`, `readOnlyRootFilesystem: true`, drop `ALL` capabilities). |
 | **`golangci-lint` (v2)** | Static code analysis with `gosec` enabled for security checks. |
 | **`govulncheck`** | Official Go vulnerability scanner for stdlib and `go.mod` dependencies. |
-| **`syft`** | SPDX and CycloneDX SBOM generation (`make sbom`) to document each release for sovereign supply-chain compliance. |
-| **`addlicense`** | Enforces Apache 2.0 license headers across all source files (required by both ODC auditing and IronCore upstream). |
+| **`syft`** | SPDX and CycloneDX SBOM generation (`make sbom`) to document each release for supply-chain compliance. |
+| **`addlicense`** | Enforces Apache 2.0 license headers across all Go source files. |
 
 ### Make targets
 
@@ -95,6 +94,6 @@ Installed on the developer machine (macOS or Linux). Everything else is pinned i
 |---|---|
 | **No NetworkPolicies by default**, no CNI requirement | Network policy for an IronCore control plane is best set by the platform for all components. Like other IronCore components (for example metal-operator), the operator ships its NetworkPolicies opt-in (`config/network-policy`, standard API, ingress only). Egress is not restricted: the API server cannot be selected portably with a standard `NetworkPolicy`. The README lists the traffic the operator needs. |
 | **Prometheus via Helm** (`kube-prometheus-stack`, minimal) | We don't want to maintain the Prometheus server ourselves, since it is not the main focus of the operator. The operator only ships a `ServiceMonitor`. |
-| **cert-manager** for the metrics TLS certificate | Lets Prometheus verify the operator's metrics endpoint (`insecureSkipVerify: false`) against a namespace-local CA (`config/certmanager`: self-signed issuer → CA → serving certificate). In ODC, the issuer can be swapped for the environment's internal CA. `make deploy` and the `make build-installer` bundles (`config/installer/{operator,monitoring}`) apply the `ServiceMonitor` only after the certificates are `Ready`, because the Prometheus Operator does not re-evaluate a `ServiceMonitor` whose CA secret appears later. |
-| **Syft** for SBOMs, no Trivy | The image is a single static Go binary on distroless, whose vulnerabilities `govulncheck` already covers, so an image scan adds little. An SBOM per release documents exactly what we ship, supports ODC audits, and allows checking later whether a new CVE affects a released version. |
+| **cert-manager** for the metrics TLS certificate | Lets Prometheus verify the operator's metrics endpoint (`insecureSkipVerify: false`) against a namespace-local CA (`config/certmanager`: self-signed issuer → CA → serving certificate). In production, the issuer can be swapped for the environment's internal CA. `make deploy` and the `make build-installer` bundles (`config/installer/{operator,monitoring}`) apply the `ServiceMonitor` only after the certificates are `Ready`, because the Prometheus Operator does not re-evaluate a `ServiceMonitor` whose CA secret appears later. |
+| **Syft** for SBOMs, no Trivy | The image is a single static Go binary on distroless, whose vulnerabilities `govulncheck` already covers, so an image scan adds little. An SBOM per release documents exactly what we ship, supports audits, and allows checking later whether a new CVE affects a released version. |
 | **Releases from `main`** via `VERSION` file, assets on GitHub Releases | A merged pull request publishes `v<VERSION>` if the tag doesn't exist yet. No registry push: the image ships as OCI archive with SBOMs and `SHA256SUMS`, so it can be verified and mirrored into air-gapped registries. |
