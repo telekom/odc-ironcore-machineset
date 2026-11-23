@@ -1,0 +1,6 @@
+resources:
+- default-deny-all.yaml
+- allow-apiserver-egress.yaml
+- allow-dns-egress.yaml
+- allow-metrics-traffic.yaml
+- allow-webhook-ingress.yaml

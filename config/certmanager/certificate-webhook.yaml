@@ -1,0 +1,24 @@
+# Serving certificate for the validating webhook. The Kubernetes API server calls the webhook over
+# HTTPS and checks this certificate against the CA bundle in the ValidatingWebhookConfiguration.
+# cert-manager's CA injector copies that CA bundle from this certificate's secret (ca.crt) into
+# the ValidatingWebhookConfiguration (see the replacements in config/default).
+# SERVICE_NAME and SERVICE_NAMESPACE are substituted by the replacements in config/default.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: serving-cert  # this name should match the one appeared in kustomizeconfig.yaml
+  namespace: system
+spec:
+  dnsNames:
+  - SERVICE_NAME.SERVICE_NAMESPACE.svc
+  - SERVICE_NAME.SERVICE_NAMESPACE.svc.cluster.local
+  secretName: webhook-server-cert
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: Issuer
+    name: metrics-ca-issuer

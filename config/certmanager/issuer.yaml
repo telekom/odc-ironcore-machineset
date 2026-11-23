@@ -1,0 +1,46 @@
+# Namespace-local CA chain:
+#   selfsigned-issuer -> metrics-ca (CA certificate) -> metrics-ca-issuer -> serving certificates
+#   (metrics-certs for the metrics endpoint, serving-cert for the validating webhook)
+# To use the environment's internal PKI instead, point the serving certificates' issuerRef
+# to that (Cluster)Issuer and drop this file.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: selfsigned-issuer
+  namespace: system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: metrics-ca
+  namespace: system
+spec:
+  isCA: true
+  commonName: odc-ironcore-machineset-metrics-ca
+  secretName: metrics-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: metrics-ca-issuer
+  namespace: system
+spec:
+  ca:
+    secretName: metrics-ca

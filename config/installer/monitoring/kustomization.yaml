@@ -1,0 +1,12 @@
+# Only the ServiceMonitor from config/default; apply after ../operator once its Certificates are Ready.
+resources:
+  - ../../default
+patches:
+  - target:
+      labelSelector: app.kubernetes.io/component!=metrics-monitor
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Any
+      metadata:
+        name: any

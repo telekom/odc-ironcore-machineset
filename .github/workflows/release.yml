@@ -1,0 +1,80 @@
+name: Release
+
+# Releases are cut from main: after a pull request is merged, the version in the VERSION file is released
+# as tag v<VERSION>, unless that tag already exists. Bump VERSION in a pull request to publish a release.
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+    name: Publish release artifacts
+    runs-on: ubuntu-26.04
+    env:
+      # Image reference written into install.yaml as <IMAGE_NAME>:<tag>. No image is pushed to a registry;
+      # it is attached as an OCI archive that users load or mirror into their own registry.
+      IMAGE_NAME: machineset-operator
+      MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - name: Clone the merged commit on main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Determine release tag
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error file=VERSION::'${version}' is not a semantic version (e.g. 1.2.3 or 1.2.3-rc.1)"
+            exit 1
+          fi
+          tag="v${version}"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" > /dev/null 2>&1; then
+            echo "Tag ${tag} already exists; bump VERSION to publish a new release."
+            echo "release=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Releasing ${tag}"
+            echo "release=true" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup Go
+        if: steps.version.outputs.release == 'true'
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build release artifacts
+        if: steps.version.outputs.release == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: make release-artifacts IMG="${IMAGE_NAME}:${TAG}"
+
+      - name: Create GitHub release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${MERGE_COMMIT_SHA}" \
+            --title "${TAG}" \
+            --generate-notes \
+            dist/*

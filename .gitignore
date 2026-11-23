@@ -1,0 +1,46 @@
+# Project-specific
+brain-storming/
+
+# Binaries & build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/manager
+
+# Test & coverage artifacts
+*.test
+*.out
+cover.out
+coverage.txt
+testbin/
+
+# Go workspace
+go.work
+go.work.sum
+
+# Kubernetes & local dev
+kubeconfig
+*.kubeconfig
+
+# IDEs & editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+

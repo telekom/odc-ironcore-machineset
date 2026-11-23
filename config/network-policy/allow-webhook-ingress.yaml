@@ -1,0 +1,25 @@
+# Allows the Kubernetes API server to call the validating webhook of the controller-manager.
+# The API server calls the webhook Service on port 443, which forwards to the webhook server in the
+# manager on port 9443 (see config/webhook/service.yaml). NetworkPolicies see the pod port.
+# A CiliumNetworkPolicy is used because the API server runs on the host network and has no
+# portable selector in the standard NetworkPolicy API; Cilium identifies it as an entity.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: allow-webhook-ingress
+  namespace: system
+spec:
+  endpointSelector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: odc-ironcore-machineset
+  ingress:
+    - fromEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "9443"
+              protocol: TCP

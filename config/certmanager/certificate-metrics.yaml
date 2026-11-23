@@ -1,0 +1,22 @@
+# Serving certificate for the metrics endpoint. The resulting secret (tls.crt, tls.key, ca.crt)
+# is mounted into the manager and its ca.crt is used by the ServiceMonitor to verify the server.
+# SERVICE_NAME and SERVICE_NAMESPACE are substituted by the replacements in config/default.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: metrics-certs
+  namespace: system
+spec:
+  dnsNames:
+  - SERVICE_NAME.SERVICE_NAMESPACE.svc
+  - SERVICE_NAME.SERVICE_NAMESPACE.svc.cluster.local
+  secretName: metrics-server-cert
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: Issuer
+    name: metrics-ca-issuer

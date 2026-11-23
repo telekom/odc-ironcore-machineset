@@ -1,0 +1,31 @@
+# Prometheus Monitor Service (Metrics)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+    # Used by config/installer to apply this ServiceMonitor only after its CA secret exists.
+    app.kubernetes.io/component: metrics-monitor
+  name: controller-manager-metrics-monitor
+  namespace: system
+spec:
+  endpoints:
+    - path: /metrics
+      port: https # Ensure this is the name of the port that exposes HTTPS metrics
+      scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        # Verifies the metrics server against the CA issued by cert-manager (config/certmanager).
+        # SERVICE_NAME and SERVICE_NAMESPACE are substituted by the replacements in config/default.
+        serverName: SERVICE_NAME.SERVICE_NAMESPACE.svc
+        insecureSkipVerify: false
+        ca:
+          secret:
+            name: metrics-server-cert
+            key: ca.crt
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: odc-ironcore-machineset

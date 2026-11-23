@@ -1,0 +1,15 @@
+# Everything from config/default except the ServiceMonitor; apply this first.
+# The Prometheus Operator rejects a ServiceMonitor whose CA secret does not exist yet and does not
+# re-evaluate it once the secret appears, so ../monitoring must be applied after the cert-manager
+# Certificates are Ready (e.g. `kubectl wait`, Flux `dependsOn` + `wait: true`, or Argo CD sync waves).
+resources:
+  - ../../default
+patches:
+  - target:
+      labelSelector: app.kubernetes.io/component=metrics-monitor
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Any
+      metadata:
+        name: any

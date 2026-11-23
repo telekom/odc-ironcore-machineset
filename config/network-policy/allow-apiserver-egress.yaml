@@ -1,0 +1,26 @@
+# Allows the controller-manager to reach the Kubernetes API server (watches, leader election,
+# TokenReview/SubjectAccessReview for the secured metrics endpoint).
+# A CiliumNetworkPolicy is used because the API server runs on the host network and has no
+# portable selector in the standard NetworkPolicy API; Cilium identifies it as an entity.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: allow-apiserver-egress
+  namespace: system
+spec:
+  endpointSelector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: odc-ironcore-machineset
+  egress:
+    - toEntities:
+        - kube-apiserver
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "6443"
+              protocol: TCP

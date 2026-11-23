@@ -1,0 +1,48 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-compute-odc-telekom-com-v1alpha1-machineset
+  failurePolicy: Fail
+  name: vmachineset-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - compute.odc.telekom.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - machinesets
+    - machinesets/status
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-compute-odc-telekom-com-v1alpha1-machinesetmember
+  failurePolicy: Fail
+  name: vmachinesetmember-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - compute.odc.telekom.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - machinesetmembers
+    - machinesetmembers/status
+  sideEffects: None

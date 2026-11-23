@@ -1,0 +1,33 @@
+# Minimal kube-prometheus-stack for local development and e2e tests:
+# only the Prometheus Operator and a single Prometheus instance.
+grafana:
+  enabled: false
+alertmanager:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+defaultRules:
+  create: false
+
+# Skip scraping of cluster components; only ServiceMonitors are of interest.
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+coreDns:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # Select all ServiceMonitors, not only those labelled with the Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false

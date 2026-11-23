@@ -1,0 +1,15 @@
+# Denies all ingress and egress traffic for every Pod in the namespace.
+# Required traffic is re-allowed by the other policies in this directory.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: default-deny-all
+  namespace: system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

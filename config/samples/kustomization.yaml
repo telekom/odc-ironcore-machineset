@@ -1,0 +1,5 @@
+## Append samples of your project ##
+# MachineSetMembers have no sample: the MachineSet controller creates them.
+resources:
+- compute_v1alpha1_machineset.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

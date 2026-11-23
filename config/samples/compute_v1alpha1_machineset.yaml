@@ -1,0 +1,61 @@
+# Three durable broker VMs. Each member gets its own root Volume and primary NetworkInterface
+# (with an ephemeral IP and a public VirtualIP), created from the templates below. These survive
+# when the member's Machine is replaced.
+apiVersion: compute.odc.telekom.com/v1alpha1
+kind: MachineSet
+metadata:
+  labels:
+    app.kubernetes.io/name: odc-ironcore-machineset
+    app.kubernetes.io/managed-by: kustomize
+  name: brokers
+spec:
+  replicas: 3
+  template:
+    spec:
+      machineClassRef:
+        name: broker-medium
+      power: "On"
+      volumes:
+      - name: root
+        volumeTemplateRef:
+          name: root
+      networkInterfaces:
+      - name: primary
+        networkInterfaceTemplateRef:
+          name: primary
+  volumeTemplates:
+  - metadata:
+      name: root
+    spec:
+      volumeClassRef:
+        name: durable-block
+      resources:
+        storage: 40Gi
+      dataSource:
+        osImage:
+          image: registry.example.org/images/broker:v1
+  networkInterfaceTemplates:
+  - metadata:
+      name: primary
+    spec:
+      networkRef:
+        name: application-network
+      ipFamilies:
+      - IPv4
+      ips:
+      - ephemeral:
+          prefixTemplate:
+            spec:
+              ipFamily: IPv4
+              prefixLength: 32
+              parentRef:
+                name: application-prefix
+      virtualIP:
+        ephemeral:
+          virtualIPTemplate:
+            spec:
+              type: Public
+              ipFamily: IPv4
+              reclaimPolicy: Delete
+  resourceRetentionPolicy:
+    whenScaledDown: Retain
