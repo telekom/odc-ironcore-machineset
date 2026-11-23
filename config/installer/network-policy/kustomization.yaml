@@ -1,0 +1,6 @@
+# The optional NetworkPolicies, with the namespace and name prefix of config/default.
+# Apply after the operator is installed. Not part of `make deploy` or install.yaml.
+namespace: odc-ironcore-machineset-system
+namePrefix: odc-ironcore-machineset-
+resources:
+  - ../../network-policy

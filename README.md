@@ -44,13 +44,45 @@ To run, a Kubernetes cluster with:
 - The [IronCore](https://github.com/ironcore-dev/ironcore) API (`compute`, `storage` and
   `networking` groups); the project builds against IronCore v0.9.0
 - [cert-manager](https://cert-manager.io/), which issues the webhook and metrics certificates
-- [Cilium](https://cilium.io/), for the network policies that allow traffic between the
-  operator and the Kubernetes API server
 - Optional: the [Prometheus Operator](https://prometheus-operator.dev/), to scrape metrics
   through the `ServiceMonitor`
 
-The end-to-end tests run on [Kind](https://kind.sigs.k8s.io/) with Cilium 1.20.4,
+No particular network plugin (CNI) is needed; see [Network requirements](#network-requirements).
+
+The end-to-end tests run on [Kind](https://kind.sigs.k8s.io/) with its default network plugin,
 cert-manager v1.21.3 and kube-prometheus-stack 92.14.1 (see the `Makefile`).
+
+### Network requirements
+
+The default install contains no NetworkPolicies. Network policy for an IronCore control plane
+is best set by the platform for all components. If your cluster enforces NetworkPolicies,
+allow the following traffic for the operator pod. It runs in namespace
+`odc-ironcore-machineset-system` with the labels `control-plane: controller-manager` and
+`app.kubernetes.io/name: odc-ironcore-machineset`.
+
+| Direction | Peer | Port | Purpose |
+|---|---|---|---|
+| Egress | Kubernetes API server | 443 or 6443/TCP | Read and write MachineSets, MachineSetMembers and IronCore resources (IronCore's API is served through the Kubernetes API server); leader election |
+| Ingress | Kubernetes API server | 9443/TCP | Validating webhook (Service `webhook-service`, port 443) |
+| Ingress | Metrics scraper, e.g. Prometheus | 8443/TCP | Metrics over HTTPS (Service `controller-manager-metrics-service`) |
+| Ingress | kubelet | 8081/TCP | Liveness and readiness probes |
+
+Notes:
+
+- The Kubernetes API server usually runs on the host network or outside the cluster, so a
+  standard NetworkPolicy cannot select it by label. Common options are an `ipBlock` with the
+  API server's endpoint IPs (`kubectl get endpointslices -n default -l
+  kubernetes.io/service-name=kubernetes`), a CNI-specific rule such as Cilium's
+  `kube-apiserver` entity, or a rule that allows the port to any address.
+- If the webhook cannot be reached, creating or changing a MachineSet fails
+  (`failurePolicy: Fail`). Running VMs are not affected.
+- Traffic from the pod's own node, including the kubelet probes, is always allowed.
+
+The project ships optional ingress NetworkPolicies in
+[`config/network-policy`](config/network-policy): metrics only from namespaces labeled
+`metrics: enabled`, and the webhook port from any source. Apply them with
+`make deploy-network-policy`, or with `install-network-policy.yaml` from a release. They do not
+restrict egress.
 
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
@@ -123,6 +155,7 @@ merged pull request. Each release has these assets:
 |---|---|
 | `install.yaml` | Everything needed to install this project, except the `ServiceMonitor` |
 | `install-monitoring.yaml` | The `ServiceMonitor`; apply after the cert-manager certificates are `Ready` |
+| `install-network-policy.yaml` | Optional ingress NetworkPolicies, see [Network requirements](#network-requirements) |
 | `image-linux-<arch>.oci.tar` | The operator image (amd64, arm64) as OCI archive |
 | `sbom-linux-<arch>.spdx.json`, `sbom-linux-<arch>.cyclonedx.json` | SBOMs of each image (Syft) |
 | `SHA256SUMS` | Checksums of all assets |
@@ -135,8 +168,8 @@ make release-artifacts IMG=machineset-operator:v0.1.0
 
 The `ServiceMonitor` is split out because the Prometheus Operator rejects a
 `ServiceMonitor` whose CA secret does not exist yet and does not re-evaluate it
-later. Neither bundle contains the cluster dependencies (Cilium, cert-manager,
-Prometheus Operator).
+later. The bundles do not contain the cluster dependencies (cert-manager, Prometheus
+Operator).
 
 **Installing a release**
 
@@ -174,6 +207,12 @@ kubectl wait certificates.cert-manager.io \
     --timeout=2m
 
 kubectl apply -f install-monitoring.yaml
+```
+
+4. Optional: apply the NetworkPolicies (see [Network requirements](#network-requirements)):
+
+```sh
+kubectl apply -f install-network-policy.yaml
 ```
 
 With GitOps, point two Flux `Kustomization`s (or Argo CD sync waves) at

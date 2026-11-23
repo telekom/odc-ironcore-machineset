@@ -27,12 +27,11 @@ resources:
 - ../prometheus
 # [METRICS] Expose the controller manager metrics service.
 - metrics_service.yaml
-# [NETWORK POLICY] Default-deny ingress/egress for the namespace, with explicit allows for
-# the API server (CiliumNetworkPolicy; requires Cilium), DNS and metrics scraping.
-# Only Pod(s) running a namespace labeled with 'metrics: enabled' will be able to gather the metrics.
-# Only CR(s) which requires webhooks and are applied on namespaces labeled with 'webhooks: enabled' will
-# be able to communicate with the Webhook Server.
-- ../network-policy
+# [NETWORK POLICY] Optional ingress NetworkPolicies for the metrics endpoint and the webhook.
+# Not enabled by default: network policy for an IronCore control plane is best set by the
+# platform for all components. Apply them with `make deploy-network-policy` instead, or
+# uncomment the line below. See "Network requirements" in the README.
+#- ../network-policy
 
 # Uncomment the patches line if you enable Metrics
 patches:

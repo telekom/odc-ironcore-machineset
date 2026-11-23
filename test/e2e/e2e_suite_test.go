@@ -37,8 +37,8 @@ var (
 )
 
 // TestE2E runs the e2e test suite to validate the solution in an isolated environment.
-// The default setup requires a Kind cluster with Cilium, cert-manager and the Prometheus Operator,
-// as created by `make setup-test-e2e`.
+// The default setup requires a Kind cluster with cert-manager and the Prometheus Operator, as
+// created by `make setup-test-e2e`. Kind's default CNI enforces the NetworkPolicies under test.
 //
 // To enable kubectl kuberc (use custom kubectl configurations), set: KUBECTL_KUBERC=true
 // By default, kuberc is disabled to ensure consistent test behavior across different environments.

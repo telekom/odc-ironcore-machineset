@@ -47,7 +47,8 @@ const metricsServiceName = "odc-ironcore-machineset-controller-manager-metrics-s
 const metricsRoleBindingName = "odc-ironcore-machineset-metrics-binding"
 
 // metricsClientNamespace is labeled 'metrics: enabled' (see `make install-prometheus`), so the
-// NetworkPolicy admits scrapers from it. Prometheus runs here as well.
+// optional metrics NetworkPolicy, which the tests apply, admits scrapers from it. Prometheus
+// runs here as well.
 const metricsClientNamespace = "monitoring"
 
 // deniedClientNamespace has no 'metrics: enabled' label; the NetworkPolicy must block it.
@@ -83,6 +84,11 @@ var _ = Describe("Manager", Ordered, func() {
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", managerImage))
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
+
+		By("applying the optional NetworkPolicies")
+		cmd = exec.Command("make", "deploy-network-policy")
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to apply the NetworkPolicies")
 	})
 
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
